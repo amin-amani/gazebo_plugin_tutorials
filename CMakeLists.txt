@@ -20,3 +20,14 @@ target_link_libraries(model_push ${GAZEBO_LIBRARIES}  ${roscpp_LIBRARIES})
 
 add_library(hello_world SHARED hello_world.cc)
 target_link_libraries(hello_world ${GAZEBO_LIBRARIES})
+
+add_executable(vel vel.cc)
+
+if (${gazebo_VERSION_MAJOR} LESS 6)
+  # These two
+  include(FindBoost)
+  find_package(Boost ${MIN_BOOST_VERSION} REQUIRED system filesystem regex)
+  target_link_libraries(vel ${GAZEBO_LIBRARIES} ${Boost_LIBRARIES})
+else()
+  target_link_libraries(vel ${GAZEBO_LIBRARIES})
+endif()
