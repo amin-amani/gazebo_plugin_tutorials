@@ -5,11 +5,15 @@
 #include "ros/callback_queue.h"
 #include "ros/subscribe_options.h"
 #include "std_msgs/Float32.h"
+#include "std_msgs/Float32MultiArray.h"
+
  #include <gazebo/gazebo.hh>
  #include <gazebo/physics/physics.hh>
  #include <gazebo/transport/transport.hh>
  #include <gazebo/msgs/msgs.hh>
 
+#include <std_msgs/MultiArrayLayout.h>
+#include <std_msgs/MultiArrayDimension.h>
 
 namespace gazebo
 {
@@ -27,6 +31,9 @@ private: ros::CallbackQueue rosQueue;
 
 /// \brief A thread the keeps running the rosQueue
 private: std::thread rosQueueThread;
+
+  private: physics::JointPtr *joints;
+  private: common::PID *pids;
 
 /// \brief A node used for transport
 private: transport::NodePtr node;
@@ -59,6 +66,8 @@ private: common::PID pid2;
     /// \param[in] _sdf A pointer to the plugin's SDF element.
     public: virtual void Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
     {
+        
+        
         if (_model->GetJointCount() == 0)
   {
     std::cerr << "Invalid joint count, ModelPush plugin not loaded\n";
@@ -67,32 +76,42 @@ private: common::PID pid2;
   
    // Store the model pointer for convenience.
   this->model = _model;
+  joints=new physics::JointPtr[_model->GetJointCount()];
+  pids=new common::PID [_model->GetJointCount()];
   
-  
+  for(int i=0;i<_model->GetJointCount();i++)
+  {
+      this->joints[i] = _model->GetJoints()[i];
+    // Setup a P-controller, with a gain of 0.1.
+  this->pids[i] = common::PID(100, 0, 10);
+  // Apply the P-controller to the joint.
+  this->model->GetJointController()->SetPositionPID(this->joints[i]->GetScopedName(), this->pids[i]);
+      
+}
 // Get the first joint. We are making an assumption about the model
   // having one joint that is the rotational joint.
-  this->joint1 = _model->GetJoints()[0];
-    // Setup a P-controller, with a gain of 0.1.
-  this->pid1 = common::PID(1000, 0, 300);
-  // Apply the P-controller to the joint.
-  this->model->GetJointController()->SetPositionPID(this->joint1->GetScopedName(), this->pid1);
+//   this->joint1 = _model->GetJoints()[0];
+//     // Setup a P-controller, with a gain of 0.1.
+//   this->pid1 = common::PID(100, 0, 10);
+//   // Apply the P-controller to the joint.
+//   this->model->GetJointController()->SetPositionPID(this->joint1->GetScopedName(), this->pid1);
   // Set the joint's target velocity. This target velocity is just
   // for demonstration purposes.
 //   this->model->GetJointController()->SetPositionTarget(this->joint1->GetScopedName(), 0.5);
 //   this->model->GetJointController()->SetVelocityTarget(this->joint1->GetScopedName(), 0);
 //   
   
-  this->joint2 = _model->GetJoints()[1];
-    // Setup a P-controller, with a gain of 0.1.
-  this->pid2 = common::PID(1000, 0, 300);
-  // Apply the P-controller to the joint.
-  this->model->GetJointController()->SetPositionPID(this->joint2->GetScopedName(), this->pid2);
-  // Set the joint's target velocity. This target velocity is just
-  // for demonstration purposes.
-//   this->model->GetJointController()->SetPositionTarget(this->joint2->GetScopedName(),0.3);
-//   this->model->GetJointController()->SetVelocityTarget(this->joint2->GetScopedName(), 0);
-   this->SetPosition(0,0);
-    //this->SetVelocity(0,0);
+//   this->joint2 = _model->GetJoints()[1];
+//     // Setup a P-controller, with a gain of 0.1.
+//   this->pid2 = common::PID(100, 0, 10);
+//   // Apply the P-controller to the joint.
+//   this->model->GetJointController()->SetPositionPID(this->joint2->GetScopedName(), this->pid2);
+//   // Set the joint's target velocity. This target velocity is just
+//   // for demonstration purposes.
+// //   this->model->GetJointController()->SetPositionTarget(this->joint2->GetScopedName(),0.3);
+// //   this->model->GetJointController()->SetVelocityTarget(this->joint2->GetScopedName(), 0);
+//    this->SetPosition(0,0);
+//     //this->SetVelocity(0,0);
  
    // Just output a message for now
       std::cerr << "\nThe velodyne plugin is attach to model[" <<_model->GetName() << "]\n";      
@@ -112,12 +131,15 @@ if (!ros::isInitialized())
 this->rosNode.reset(new ros::NodeHandle("gazebo_client"));
 
 // Create a named topic, and subscribe to it.
+// ros::SubscribeOptions so =
+//   ros::SubscribeOptions::create<std_msgs::Float32>("/" + this->model->GetName() + "/vel_cmd", 1,
+//       boost::bind(&ModelPush::OnRosMsg, this, _1), ros::VoidPtr(), &this->rosQueue);
+// this->rosSub = this->rosNode->subscribe(so);
+
+// Create a named topic, and subscribe to it.
 ros::SubscribeOptions so =
-  ros::SubscribeOptions::create<std_msgs::Float32>(
-      "/" + this->model->GetName() + "/vel_cmd",
-      1,
-      boost::bind(&ModelPush::OnRosMsg, this, _1),
-      ros::VoidPtr(), &this->rosQueue);
+  ros::SubscribeOptions::create<std_msgs::Float32MultiArray>("joints/pos", 1,
+      boost::bind(&ModelPush::OnRosMsg, this, _1), ros::VoidPtr(), &this->rosQueue);
 this->rosSub = this->rosNode->subscribe(so);
 
 // Spin up the queue helper thread.
@@ -145,17 +167,31 @@ this->rosQueueThread =
 public: void SetPosition(const double &_pos1,const double &_pos2)
 {
   // Set the joint's target position.
-  this->model->GetJointController()->SetPositionTarget(this->joint1->GetScopedName(), _pos1);
-  this->model->GetJointController()->SetPositionTarget(this->joint2->GetScopedName(), _pos2);  
+  this->model->GetJointController()->SetPositionTarget(this->joints[0]->GetScopedName(), _pos1);
+  this->model->GetJointController()->SetPositionTarget(this->joints[1]->GetScopedName(), _pos2);  
+}
+
+public: void SetPositionIndex(const double &_pos1,int id)
+{
+  // Set the joint's target position.
+  this->model->GetJointController()->SetPositionTarget(this->joints[id]->GetScopedName(), _pos1);
 }
 
 /// \brief Handle an incoming message from ROS
 /// \param[in] _msg A float value that is used to set the velocity
 /// of the Velodyne.
-public: void OnRosMsg(const std_msgs::Float32ConstPtr &_msg)
+//public: void OnRosMsg(const std_msgs::Float32ConstPtr &_msg)
+public: void OnRosMsg(const std_msgs::Float32MultiArrayConstPtr &_msg)
 {
-  this->SetVelocity(_msg->data);
+int  jointCount=this->model->GetJointCount();
+    
+for(int i=0;i<jointCount;i++)
+  {
+  // if(i<_msg->layout.dim[0].size)
+  this->SetPositionIndex(_msg->data[i],i);
+  }
 }
+
 
 /// \brief ROS helper function that processes messages
 private: void QueueThread()

@@ -1,1 +1,0 @@
-/usr/bin/c++  -fPIC -std=c++11 -g  -shared -Wl,-soname,libroscomunication.so -o libroscomunication.so CMakeFiles/roscomunication.dir/roscomunication.cc.o  -L/usr/lib/x86_64-linux-gnu/gazebo-7/plugins 
