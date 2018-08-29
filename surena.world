@@ -1,0 +1,33 @@
+<?xml version="1.0"?> 
+    <sdf version="1.5">
+    <world name="default">
+
+        <!-- Ground Plane -->
+        <include>
+        <uri>model://ground_plane</uri>
+        </include>
+
+        <include>
+        <uri>model://sun</uri>
+        </include>
+
+        
+        <!-- A testing model that includes the Velodyne sensor model -->
+        <model name="Surena4">
+        <include>
+            <uri> model://Surena4</uri>
+        </include>
+
+        <!-- Attach the plugin to this model -->
+      <!--  <plugin name="ModelPush" filename="libmodel_push.so">-->
+       <!-- <velocity>25</velocity>
+        <velocity>25</velocity>-->
+     <!--   </plugin>-->
+        
+           <plugin name="Surena" filename="libsurena.so"/>
+        </model>
+        
+        
+    </world>
+    </sdf>
+
