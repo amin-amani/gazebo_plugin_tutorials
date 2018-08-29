@@ -16,7 +16,12 @@ add_library(model_push SHARED model_push.cc)
 target_link_libraries(model_push ${GAZEBO_LIBRARIES}  ${roscpp_LIBRARIES})
 
 add_library(roscomunication SHARED roscomunication.cc)
-target_link_libraries(model_push ${GAZEBO_LIBRARIES}  ${roscpp_LIBRARIES})
+target_link_libraries(roscomunication ${GAZEBO_LIBRARIES}  ${roscpp_LIBRARIES})
+
+
 
 add_library(hello_world SHARED hello_world.cc)
 target_link_libraries(hello_world ${GAZEBO_LIBRARIES})
+
+add_library(surena SHARED surena.cc)
+target_link_libraries(surena ${GAZEBO_LIBRARIES})
